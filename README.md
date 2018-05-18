@@ -1,0 +1,1 @@
+This is a collection of some interesting data science an my attempts at solving them
