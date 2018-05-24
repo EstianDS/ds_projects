@@ -1,5 +1,6 @@
 ### Load required packages
 require(tidyverse)
+require(lubridate)
 
 ### Load data
 # Load training data
@@ -45,7 +46,7 @@ train_tbl %>%
   mutate(percentage=item_cnt_day/sum(item_cnt_day)) %>% 
   mutate(cum_percentage=cumsum(percentage)) %>% 
   gather(key,value,percentage,cum_percentage) %>% 
-  ###### One big outlier, but other than that sales are more uniformly distributed accross items than I have ever seen in practice
+  ###### One big outlier, but other than that sales are more uniformly distributed accross items than I have ever seen in industry
   ggplot(aes(x=item_rank,y=value))+geom_col()+facet_grid(key~.,scales = "free")+ggtitle("Item Volume Distribution")#+coord_cartesian(xlim = c(0,100))
 
 
@@ -69,7 +70,22 @@ train_tbl %>%
 
 
 ### Define some cleansing and transformation functions
-
+transform_data <- function(tibble,max_lag, top_n_correlated){
+  max_lag <- 4
+  top_n_correlated <- 4
+  train_tbl %>%
+    ###### Calculate monthly/weekly/daily average,min,max sales by item/shop over various lags
+    ## Create lag values
+    mutate(lags=paste(c(0:max_lag),collapse = "-")) %>% 
+    separate(lags,into = paste0("lag_",c(0:max_lag)),remove = TRUE) %>% 
+    gather(lag,lag_value,paste0("lag_",c(0:max_lag))) %>% 
+    mutate(lag_value=as.numeric(lag_value)) %>%  
+    ## Define date partitions
+    mutate(day=as.Date(as.character(date),"%d.%m.%Y")+days(-1*lag_value),
+           week=floor_date(day,unit = "week")+weeks(-1*lag_value),
+           month=floor_date(day,unit = "month")+months(-1*lag_value))
+    
+}
 
 
 
