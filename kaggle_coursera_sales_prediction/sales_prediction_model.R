@@ -1,6 +1,7 @@
 ### Load required packages
 require(tidyverse)
 require(lubridate)
+require(h2o)
 
 ### Load data
 # Load training data
@@ -70,22 +71,29 @@ train_tbl %>%
 
 
 ### Define some cleansing and transformation functions
-transform_data <- function(tibble,max_lag, top_n_correlated){
-  max_lag <- 4
-  top_n_correlated <- 4
+transform_data <- function(tibble){
+  #tibble_lags <- 
   train_tbl %>%
-    ###### Calculate monthly/weekly/daily average,min,max sales by item/shop over various lags
-    ## Create lag values
-    mutate(lags=paste(c(0:max_lag),collapse = "-")) %>% 
-    separate(lags,into = paste0("lag_",c(0:max_lag)),remove = TRUE) %>% 
-    gather(lag,lag_value,paste0("lag_",c(0:max_lag))) %>% 
-    mutate(lag_value=as.numeric(lag_value)) %>%  
-    ## Define date partitions
-    mutate(day=as.Date(as.character(date),"%d.%m.%Y")+days(-1*lag_value),
-           week=floor_date(day,unit = "week")+weeks(-1*lag_value),
-           month=floor_date(day,unit = "month")+months(-1*lag_value))
-    
+    #### Define date partitions
+    mutate(day=as.Date(as.character(date),"%d.%m.%Y"),
+           week=floor_date(day,unit = "week"),
+           month=floor_date(day,unit = "month")) %>% 
+    gather(time_period,value,week:month) %>% 
+    #### Calculating summary stattistics by shop_id
+    group_by(shop_id,time_period,value) %>% 
+    mutate(shop_sales=sum(item_cnt_day),
+           shop_avg_sales=shop_sales/n_distinct(date)) %>% 
+    group_by(item_id,time_period,value) %>% 
+    mutate(item_sales=sum(item_cnt_day),
+           item_avg_sales=item_sales/n_distinct(date)) %>% 
+    ungroup() %>% 
+    gather(metric,metric_value,shop_sales:item_avg_sales) %>% 
+    unite(temp,time_period,metric) %>% 
+    select(-value) %>% 
+    spread(temp,metric_value)
 }
+
+
 
 
 
